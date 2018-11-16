@@ -6,16 +6,15 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {Adapter, Context} from './adapter';
+import {Adapter} from './adapter';
 import {CacheState, DebugIdleState, DebugState, DebugVersion, Debuggable, UpdateCacheStatus, UpdateSource} from './api';
 import {AppVersion} from './app-version';
-import {Database, Table} from './database';
+import {Database} from './database';
 import {DebugHandler} from './debug';
-import {SwCriticalError} from './error';
+import {errorToString} from './error';
 import {IdleScheduler} from './idle';
 import {Manifest, ManifestHash, hashManifest} from './manifest';
 import {MsgAny, isMsgActivateUpdate, isMsgCheckForUpdates} from './msg';
-import {isNavigationRequest} from './util';
 
 type ClientId = string;
 
@@ -30,9 +29,9 @@ const IDLE_THRESHOLD = 5000;
 
 const SUPPORTED_CONFIG_VERSION = 1;
 
-const NOTIFICATION_OPTION_NAMES = [
-  'actions', 'body', 'dir', 'icon', 'lang', 'renotify', 'requireInteraction', 'tag', 'vibrate',
-  'data'
+const NOTIFICATION_OPTION_NAMES: (keyof Notification)[] = [
+  'actions', 'badge', 'body', 'data', 'dir', 'icon', 'image', 'lang', 'renotify',
+  'requireInteraction', 'silent', 'tag', 'timestamp', 'title', 'vibrate'
 ];
 
 interface LatestEntry {
@@ -95,6 +94,12 @@ export class Driver implements Debuggable, UpdateSource {
   private scheduledNavUpdateCheck: boolean = false;
 
   /**
+   * Keep track of whether we have logged an invalid `only-if-cached` request.
+   * (See `.onFetch()` for details.)
+   */
+  private loggedInvalidOnlyIfCachedRequest: boolean = false;
+
+  /**
    * A scheduler which manages a queue of tasks that need to be executed when the SW is
    * not doing any other work (not processing any other requests).
    */
@@ -118,9 +123,22 @@ export class Driver implements Debuggable, UpdateSource {
     // The activate event is triggered when this version of the service worker is
     // first activated.
     this.scope.addEventListener('activate', (event) => {
-      // As above, it's safe to take over from existing clients immediately, since
-      // the new SW version will continue to serve the old application.
-      event !.waitUntil(this.scope.clients.claim());
+      event !.waitUntil((async() => {
+        // As above, it's safe to take over from existing clients immediately, since the new SW
+        // version will continue to serve the old application.
+        await this.scope.clients.claim();
+
+        // Once all clients have been taken over, we can delete caches used by old versions of
+        // `@angular/service-worker`, which are no longer needed. This can happen in the background.
+        this.idle.schedule('activate: cleanup-old-sw-caches', async() => {
+          try {
+            await this.cleanupOldSwCaches();
+          } catch (err) {
+            // Nothing to do - cleanup failed. Just log it.
+            this.debugger.log(err, 'cleanupOldSwCaches @ activate: cleanup-old-sw-caches');
+          }
+        });
+      })());
 
       // Rather than wait for the first fetch event, which may not arrive until
       // the next time the application is loaded, the SW takes advantage of the
@@ -141,6 +159,7 @@ export class Driver implements Debuggable, UpdateSource {
     this.scope.addEventListener('fetch', (event) => this.onFetch(event !));
     this.scope.addEventListener('message', (event) => this.onMessage(event !));
     this.scope.addEventListener('push', (event) => this.onPush(event !));
+    this.scope.addEventListener('notificationclick', (event) => this.onClick(event !));
 
     // The debugger generates debug pages in response to debugging requests.
     this.debugger = new DebugHandler(this, this.adapter);
@@ -156,12 +175,13 @@ export class Driver implements Debuggable, UpdateSource {
    * asynchronous execution that eventually resolves for respondWith() and waitUntil().
    */
   private onFetch(event: FetchEvent): void {
+    const req = event.request;
+
     // The only thing that is served unconditionally is the debug page.
-    if (this.adapter.parseUrl(event.request.url, this.scope.registration.scope).path ===
-        '/ngsw/state') {
+    if (this.adapter.parseUrl(req.url, this.scope.registration.scope).path === '/ngsw/state') {
       // Allow the debugger to handle the request, but don't affect SW state in any
       // other way.
-      event.respondWith(this.debugger.handleFetch(event.request));
+      event.respondWith(this.debugger.handleFetch(req));
       return;
     }
 
@@ -174,6 +194,24 @@ export class Driver implements Debuggable, UpdateSource {
       // Even though the worker is in safe mode, idle tasks still need to happen so
       // things like update checks, etc. can take place.
       event.waitUntil(this.idle.trigger());
+      return;
+    }
+
+    // When opening DevTools in Chrome, a request is made for the current URL (and possibly related
+    // resources, e.g. scripts) with `cache: 'only-if-cached'` and `mode: 'no-cors'`. These request
+    // will eventually fail, because `only-if-cached` is only allowed to be used with
+    // `mode: 'same-origin'`.
+    // This is likely a bug in Chrome DevTools. Avoid handling such requests.
+    // (See also https://github.com/angular/angular/issues/22362.)
+    // TODO(gkalpak): Remove once no longer necessary (i.e. fixed in Chrome DevTools).
+    if ((req.cache as string) === 'only-if-cached' && req.mode !== 'same-origin') {
+      // Log the incident only the first time it happens, to avoid spamming the logs.
+      if (!this.loggedInvalidOnlyIfCachedRequest) {
+        this.loggedInvalidOnlyIfCachedRequest = true;
+        this.debugger.log(
+            `Ignoring invalid request: 'only-if-cached' can be set only with 'same-origin' mode`,
+            `Driver.fetch(${req.url}, cache: ${req.cache}, mode: ${req.mode})`);
+      }
       return;
     }
 
@@ -201,16 +239,21 @@ export class Driver implements Debuggable, UpdateSource {
     // Initialization is the only event which is sent directly from the SW to itself,
     // and thus `event.source` is not a Client. Handle it here, before the check
     // for Client sources.
-    if (data.action === 'INITIALIZE' && this.initialized === null) {
-      // Initialize the SW.
-      this.initialized = this.initialize();
+    if (data.action === 'INITIALIZE') {
+      // Only initialize if not already initialized (or initializing).
+      if (this.initialized === null) {
+        // Initialize the SW.
+        this.initialized = this.initialize();
 
-      // Wait until initialization is properly scheduled, then trigger idle
-      // events to allow it to complete (assuming the SW is idle).
-      event.waitUntil((async() => {
-        await this.initialized;
-        await this.idle.trigger();
-      })());
+        // Wait until initialization is properly scheduled, then trigger idle
+        // events to allow it to complete (assuming the SW is idle).
+        event.waitUntil((async() => {
+          await this.initialized;
+          await this.idle.trigger();
+        })());
+      }
+
+      return;
     }
 
     // Only messages from true clients are accepted past this point (this is essentially
@@ -233,6 +276,11 @@ export class Driver implements Debuggable, UpdateSource {
     msg.waitUntil(this.handlePush(msg.data.json()));
   }
 
+  private onClick(event: NotificationEvent): void {
+    // Handle the click event and keep the SW alive until it's handled.
+    event.waitUntil(this.handleClick(event.notification, event.action));
+  }
+
   private async handleMessage(msg: MsgAny&{action: string}, from: Client): Promise<void> {
     if (isMsgCheckForUpdates(msg)) {
       const action = (async() => { await this.checkForUpdate(); })();
@@ -243,7 +291,7 @@ export class Driver implements Debuggable, UpdateSource {
   }
 
   private async handlePush(data: any): Promise<void> {
-    this.broadcast({
+    await this.broadcast({
       type: 'PUSH',
       data,
     });
@@ -254,7 +302,22 @@ export class Driver implements Debuggable, UpdateSource {
     let options: {[key: string]: string | undefined} = {};
     NOTIFICATION_OPTION_NAMES.filter(name => desc.hasOwnProperty(name))
         .forEach(name => options[name] = desc[name]);
-    this.scope.registration.showNotification(desc['title'] !, options);
+    await this.scope.registration.showNotification(desc['title'] !, options);
+  }
+
+  private async handleClick(notification: Notification, action?: string): Promise<void> {
+    notification.close();
+
+    const options: {-readonly[K in keyof Notification]?: Notification[K]} = {};
+    // The filter uses `name in notification` because the properties are on the prototype so
+    // hasOwnProperty does not work here
+    NOTIFICATION_OPTION_NAMES.filter(name => name in notification)
+        .forEach(name => options[name] = notification[name]);
+
+    await this.broadcast({
+      type: 'NOTIFICATION_CLICK',
+      data: {action, notification: options},
+    });
   }
 
   private async reportStatus(client: Client, promise: Promise<void>, nonce: number): Promise<void> {
@@ -519,20 +582,21 @@ export class Driver implements Debuggable, UpdateSource {
    * Decide which version of the manifest to use for the event.
    */
   private async assignVersion(event: FetchEvent): Promise<AppVersion|null> {
-    // First, check whether the event has a client ID. If it does, the version may
+    // First, check whether the event has a (non empty) client ID. If it does, the version may
     // already be associated.
     const clientId = event.clientId;
-    if (clientId !== null) {
+    if (clientId) {
       // Check if there is an assigned client id.
       if (this.clientVersionMap.has(clientId)) {
         // There is an assignment for this client already.
-        let hash = this.clientVersionMap.get(clientId) !;
+        const hash = this.clientVersionMap.get(clientId) !;
+        let appVersion = this.lookupVersionByHash(hash, 'assignVersion');
 
         // Ordinarily, this client would be served from its assigned version. But, if this
         // request is a navigation request, this client can be updated to the latest
         // version immediately.
         if (this.state === DriverReadyState.NORMAL && hash !== this.latestHash &&
-            isNavigationRequest(event.request, this.scope.registration.scope, this.adapter)) {
+            appVersion.isNavigationRequest(event.request)) {
           // Update this client to the latest version immediately.
           if (this.latestHash === null) {
             throw new Error(`Invariant violated (assignVersion): latestHash was null`);
@@ -541,11 +605,11 @@ export class Driver implements Debuggable, UpdateSource {
           const client = await this.scope.clients.get(clientId);
 
           await this.updateClient(client);
-          hash = this.latestHash;
+          appVersion = this.lookupVersionByHash(this.latestHash, 'assignVersion');
         }
 
         // TODO: make sure the version is valid.
-        return this.lookupVersionByHash(hash, 'assignVersion');
+        return appVersion;
       } else {
         // This is the first time this client ID has been seen. Whether the SW is in a
         // state to handle new clients depends on the current readiness state, so check
@@ -607,16 +671,22 @@ export class Driver implements Debuggable, UpdateSource {
 
   /**
    * Retrieve a copy of the latest manifest from the server.
+   * Return `null` if `ignoreOfflineError` is true (default: false) and the server or client are
+   * offline (detected as response status 504).
    */
-  private async fetchLatestManifest(): Promise<Manifest> {
+  private async fetchLatestManifest(ignoreOfflineError?: false): Promise<Manifest>;
+  private async fetchLatestManifest(ignoreOfflineError: true): Promise<Manifest|null>;
+  private async fetchLatestManifest(ignoreOfflineError = false): Promise<Manifest|null> {
     const res =
         await this.safeFetch(this.adapter.newRequest('ngsw.json?ngsw-cache-bust=' + Math.random()));
     if (!res.ok) {
       if (res.status === 404) {
         await this.deleteAllCaches();
-        this.scope.registration.unregister();
+        await this.scope.registration.unregister();
+      } else if (res.status === 504 && ignoreOfflineError) {
+        return null;
       }
-      throw new Error('Manifest fetch failed!');
+      throw new Error(`Manifest fetch failed! (status: ${res.status})`);
     }
     this.lastUpdateCheck = this.adapter.time;
     return res.json();
@@ -673,7 +743,7 @@ export class Driver implements Debuggable, UpdateSource {
       // network, but caches continue to be valid for previous versions. This is
       // unfortunate but unavoidable.
       this.state = DriverReadyState.EXISTING_CLIENTS_ONLY;
-      this.stateMessage = `Degraded due to failed initialization: ${errorToString(err)}`;
+      this.stateMessage = `Degraded due to: ${errorToString(err)}`;
 
       // Cancel the binding for these clients.
       Array.from(this.clientVersionMap.keys())
@@ -688,26 +758,23 @@ export class Driver implements Debuggable, UpdateSource {
       // Push the affected clients onto the latest version.
       affectedClients.forEach(clientId => this.clientVersionMap.set(clientId, this.latestHash !));
     }
-    await this.sync();
+
+    try {
+      await this.sync();
+    } catch (err2) {
+      // We are already in a bad state. No need to make things worse.
+      // Just log the error and move on.
+      this.debugger.log(err2, `Driver.versionFailed(${err.message || err})`);
+    }
   }
 
   private async setupUpdate(manifest: Manifest, hash: string): Promise<void> {
     const newVersion = new AppVersion(this.scope, this.adapter, this.db, this.idle, manifest, hash);
 
-    // Try to determine a version that's safe to update from.
-    let updateFrom: AppVersion|undefined = undefined;
-
-    // It's always safe to update from a version, even a broken one, as it will still
-    // only have valid resources cached. If there is no latest version, though, this
-    // update will have to install as a fresh version.
-    if (this.latestHash !== null) {
-      updateFrom = this.versions.get(this.latestHash);
-    }
-
     // Firstly, check if the manifest version is correct.
     if (manifest.configVersion !== SUPPORTED_CONFIG_VERSION) {
       await this.deleteAllCaches();
-      this.scope.registration.unregister();
+      await this.scope.registration.unregister();
       throw new Error(
           `Invalid config version: expected ${SUPPORTED_CONFIG_VERSION}, got ${manifest.configVersion}.`);
     }
@@ -728,7 +795,15 @@ export class Driver implements Debuggable, UpdateSource {
   async checkForUpdate(): Promise<boolean> {
     let hash: string = '(unknown)';
     try {
-      const manifest = await this.fetchLatestManifest();
+      const manifest = await this.fetchLatestManifest(true);
+
+      if (manifest === null) {
+        // Client or server offline. Unable to check for updates at this time.
+        // Continue to service clients (existing and new).
+        this.debugger.log('Check for update aborted. (Client or server offline.)');
+        return false;
+      }
+
       hash = hashManifest(manifest);
 
       // Check whether this is really an update.
@@ -829,6 +904,19 @@ export class Driver implements Debuggable, UpdateSource {
 
     // Commit all the changes to the saved state.
     await this.sync();
+  }
+
+  /**
+   * Delete caches that were used by older versions of `@angular/service-worker` to avoid running
+   * into storage quota limitations imposed by browsers.
+   * (Since at this point the SW has claimed all clients, it is safe to remove those caches.)
+   */
+  async cleanupOldSwCaches(): Promise<void> {
+    const cacheNames = await this.scope.caches.keys();
+    const oldSwCacheNames =
+        cacheNames.filter(name => /^ngsw:(?:active|staged|manifest:.+)$/.test(name));
+
+    await Promise.all(oldSwCacheNames.map(name => this.scope.caches.delete(name)));
   }
 
   /**
@@ -963,13 +1051,5 @@ export class Driver implements Debuggable, UpdateSource {
         statusText: 'Gateway Timeout',
       });
     }
-  }
-}
-
-function errorToString(error: any): string {
-  if (error instanceof Error) {
-    return `${error.message}\n${error.stack}`;
-  } else {
-    return `${error}`;
   }
 }

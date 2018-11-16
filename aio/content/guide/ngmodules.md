@@ -45,7 +45,7 @@ NgModule metadata does the following:
 * Declares which components, directives, and pipes belong to the module.
 * Makes some of those components, directives, and pipes public so that other module's component templates can use them.
 * Imports other modules with the components, directives, and pipes that components in the current module need.
-* Provides services at the other application components can use.
+* Provides services that the other application components can use.
 
 Every Angular app has at least one module, the root module.
 You [bootstrap](guide/bootstrapping) that module to launch the application.
@@ -57,9 +57,9 @@ You then import these modules into the root module.
 
 ## The basic NgModule
 
-The CLI generates the following basic app module when creating a new app.
+The [Angular CLI](cli) generates the following basic app module when creating a new app.
 
-<code-example path="bootstrapping/src/app/app.module.ts" region="whole-ngmodule" title="src/app/app.module.ts" linenums="false">
+<code-example path="bootstrapping/src/app/app.module.ts" region="whole-ngmodule" header="src/app/app.module.ts" linenums="false">
 </code-example>
 
 At the top are the import statements. The next section is where you configure the `@NgModule` by stating what components and directives belong to it (`declarations`) as well as which other modules it uses (`imports`). This page builds on [Bootstrapping](guide/bootstrapping), which covers the structure of an NgModule in detail. If you need more information on the structure of an `@NgModule`, be sure to read [Bootstrapping](guide/bootstrapping).

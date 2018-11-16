@@ -9,6 +9,7 @@
 import {ApplicationRef} from '../application_ref';
 import {ChangeDetectorRef} from '../change_detection/change_detection';
 import {Injector} from '../di/injector';
+import {InjectFlags} from '../di/injector_compatibility';
 import {ComponentFactory, ComponentRef} from '../linker/component_factory';
 import {ComponentFactoryBoundToModule, ComponentFactoryResolver} from '../linker/component_factory_resolver';
 import {ElementRef} from '../linker/element_ref';
@@ -138,6 +139,7 @@ class ViewContainerRef_ implements ViewContainerData {
 
   get injector(): Injector { return new Injector_(this._view, this._elDef); }
 
+  /** @deprecated No replacement */
   get parentInjector(): Injector {
     let view = this._view;
     let elDef = this._elDef.parent;
@@ -311,7 +313,8 @@ class TemplateRef_ extends TemplateRef<any> implements TemplateData {
   /**
    * @internal
    */
-  _projectedViews: ViewData[];
+  // TODO(issue/24571): remove '!'.
+  _projectedViews !: ViewData[];
 
   constructor(private _parentView: ViewData, private _def: NodeDef) { super(); }
 
@@ -431,7 +434,7 @@ class RendererAdapter implements RendererV1 {
     this.delegate.setProperty(renderElement, propertyName, propertyValue);
   }
 
-  setElementAttribute(renderElement: Element, namespaceAndName: string, attributeValue: string):
+  setElementAttribute(renderElement: Element, namespaceAndName: string, attributeValue?: string):
       void {
     const [ns, name] = splitNamespace(namespaceAndName);
     if (attributeValue != null) {
@@ -451,7 +454,7 @@ class RendererAdapter implements RendererV1 {
     }
   }
 
-  setElementStyle(renderElement: HTMLElement, styleName: string, styleValue: string): void {
+  setElementStyle(renderElement: HTMLElement, styleName: string, styleValue?: string): void {
     if (styleValue != null) {
       this.delegate.setStyle(renderElement, styleName, styleValue);
     } else {
@@ -479,7 +482,11 @@ class NgModuleRef_ implements NgModuleData, InternalNgModuleRef<any> {
   private _destroyListeners: (() => void)[] = [];
   private _destroyed: boolean = false;
   /** @internal */
-  _providers: any[];
+  // TODO(issue/24571): remove '!'.
+  _providers !: any[];
+  /** @internal */
+  // TODO(issue/24571): remove '!'.
+  _modules !: any[];
 
   readonly injector: Injector = this;
 
@@ -489,9 +496,16 @@ class NgModuleRef_ implements NgModuleData, InternalNgModuleRef<any> {
     initNgModule(this);
   }
 
-  get(token: any, notFoundValue: any = Injector.THROW_IF_NOT_FOUND): any {
+  get(token: any, notFoundValue: any = Injector.THROW_IF_NOT_FOUND,
+      injectFlags: InjectFlags = InjectFlags.Default): any {
+    let flags = DepFlags.None;
+    if (injectFlags & InjectFlags.SkipSelf) {
+      flags |= DepFlags.SkipSelf;
+    } else if (injectFlags & InjectFlags.Self) {
+      flags |= DepFlags.Self;
+    }
     return resolveNgModuleDep(
-        this, {token: token, tokenKey: tokenKey(token), flags: DepFlags.None}, notFoundValue);
+        this, {token: token, tokenKey: tokenKey(token), flags: flags}, notFoundValue);
   }
 
   get instance() { return this.get(this._moduleType); }

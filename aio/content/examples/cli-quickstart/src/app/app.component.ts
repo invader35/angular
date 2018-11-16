@@ -2,7 +2,7 @@
 import { Component } from '@angular/core';
 // #enddocregion import
 
-// #docregion metadata
+// #docregion metadata, component
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
@@ -11,6 +11,6 @@ import { Component } from '@angular/core';
 // #enddocregion metadata
 // #docregion title, class
 export class AppComponent {
-  title = 'My First Angular App';
+  title = 'My First Angular App!';
 }
-// #enddocregion title, class
+// #enddocregion title, class, component

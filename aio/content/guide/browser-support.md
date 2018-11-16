@@ -95,7 +95,7 @@ Angular supports most recent browsers. This includes the following specific vers
 
 </table>
 
-<div class="l-sub-section">
+<div class="alert is-helpful">
 
 Angular's continuous integration process runs unit tests of the framework on all of these browsers for every pull request,
 using <a href="https://saucelabs.com/">SauceLabs</a> and
@@ -122,7 +122,7 @@ Note that polyfills cannot magically transform an old, slow browser into a moder
 
 ## Enabling polyfills
 
-[Angular CLI](https://github.com/angular/angular-cli/wiki) users enable polyfills through the `src/polyfills.ts` file that
+[Angular CLI](cli) users enable polyfills through the `src/polyfills.ts` file that
 the CLI created with your project.
 
 This file incorporates the mandatory and many of the optional polyfills as JavaScript `import` statements.
@@ -133,12 +133,14 @@ But if you need an optional polyfill, you'll have to install its npm package.
 For example, [if you need the web animations polyfill](http://caniuse.com/#feat=web-animation), you could install it with `npm`, using the following command (or the `yarn` equivalent):
 
 <code-example language="sh" class="code-shell">
+  # note that the web-animations-js polyfill is only here as an example
+  # it isn't a strict requirement of Angular anymore (more below)
   npm install --save web-animations-js
 </code-example>
 
 Then open the `polyfills.ts` file and un-comment the corresponding `import` statement as in the following example:
 
-<code-example title="src/polyfills.ts">
+<code-example header="src/polyfills.ts">
   /**
   * Required to support Web Animations `@angular/platform-browser/animations`.
   * Needed for: All but Chrome, Firefox and Opera. http://caniuse.com/#feat=web-animation
@@ -152,7 +154,7 @@ add it yourself, following the same pattern:
 1. install the npm package
 1. `import` the file in `polyfills.ts`
 
-<div class="l-sub-section">
+<div class="alert is-helpful">
 
 Non-CLI users should follow the instructions [below](#non-cli).
 </div>
@@ -226,7 +228,8 @@ These are the polyfills required to run an Angular application on each supported
 
 Some features of Angular may require additional polyfills.
 
-For example, the animations library relies on the standard web animation API, which is only available in Chrome and Firefox today. You'll need a polyfill to use animations in other browsers.
+For example, the animations library relies on the standard web animation API, which is only available in Chrome and Firefox today.
+(note that the dependency of web-animations-js in Angular is only necessary if `AnimationBuilder` is used.)
 
 Here are the features which may require additional polyfills:
 
@@ -276,6 +279,8 @@ Here are the features which may require additional polyfills:
     <td>
 
       [Animations](guide/animations)
+      <br>Only if `Animation Builder` is used within the application--standard
+      animation support in Angular doesn't require any polyfills (as of NG6).
 
     </td>
 
@@ -286,7 +291,8 @@ Here are the features which may require additional polyfills:
     </td>
 
     <td>
-      All but Chrome and Firefox<br>Not supported in IE9
+      <p>If AnimationBuilder is used then the polyfill will enable scrubbing
+      support for IE/Edge and Safari (Chrome and Firefox support this natively).</p>
     </td>
 
   </tr>
@@ -547,7 +553,7 @@ computed with the <a href="http://closure-compiler.appspot.com/home">closure com
 
 If you are not using the CLI, you should add your polyfill scripts directly to the host web page (`index.html`), perhaps like this.
 
-<code-example title="src/index.html">
+<code-example header="src/index.html">
   &lt;!-- pre-zone polyfills -->
   &lt;script src="node_modules/core-js/client/shim.min.js">&lt;/script>
   &lt;script src="node_modules/web-animations-js/web-animations.min.js">&lt;/script>

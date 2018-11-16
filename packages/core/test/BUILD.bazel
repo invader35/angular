@@ -1,17 +1,14 @@
 package(default_visibility = ["//visibility:public"])
 
-load("//tools:defaults.bzl", "ts_library")
-load("@build_bazel_rules_typescript//:defs.bzl", "ts_web_test")
-load("@build_bazel_rules_nodejs//:defs.bzl", "jasmine_node_test")
+load("//tools:defaults.bzl", "jasmine_node_test", "ts_library", "ts_web_test_suite")
 
 ts_library(
     name = "test_lib",
-    testonly = 1,
+    testonly = True,
     srcs = glob(
         ["**/*.ts"],
         exclude = [
             "**/*_node_only_spec.ts",
-            "render3/**/*.ts",
         ],
     ),
     deps = [
@@ -27,15 +24,18 @@ ts_library(
         "//packages/platform-browser-dynamic",
         "//packages/platform-browser/animations",
         "//packages/platform-browser/testing",
+        "//packages/private/testing",
         "//packages/router",
         "//packages/router/testing",
+        "@ngdeps//zone.js",
         "@rxjs",
+        "@rxjs//operators",
     ],
 )
 
 ts_library(
     name = "test_node_only_lib",
-    testonly = 1,
+    testonly = True,
     srcs = glob(["**/*_node_only_spec.ts"]),
     deps = [
         ":test_lib",
@@ -45,6 +45,7 @@ ts_library(
         "//packages/core/testing",
         "//packages/platform-server",
         "//packages/platform-server/testing",
+        "//packages/private/testing",
     ],
 )
 
@@ -57,17 +58,18 @@ jasmine_node_test(
         "//packages/platform-server",
         "//packages/platform-server/testing",
         "//tools/testing:node",
+        "@ngdeps//base64-js",
+        "@ngdeps//source-map",
+        "@ngdeps//zone.js",
     ],
 )
 
-ts_web_test(
+ts_web_test_suite(
     name = "test_web",
-    bootstrap = [
-        "//:web_test_bootstrap_scripts",
+    tags = [
+        "fixme-ivy-aot",
     ],
-    # do not sort
     deps = [
-        "//tools/testing:browser",
         ":test_lib",
     ],
 )

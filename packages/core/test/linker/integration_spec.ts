@@ -8,7 +8,7 @@
 
 import {CommonModule} from '@angular/common';
 import {CompilerConfig} from '@angular/compiler';
-import {Compiler, ComponentFactory, ComponentRef, ErrorHandler, EventEmitter, Host, Inject, Injectable, InjectionToken, Injector, NO_ERRORS_SCHEMA, NgModule, NgModuleRef, OnDestroy, SkipSelf, ViewRef} from '@angular/core';
+import {Compiler, ComponentFactory, ComponentRef, ErrorHandler, EventEmitter, Host, Inject, Injectable, InjectionToken, Injector, NO_ERRORS_SCHEMA, NgModule, NgModuleRef, OnDestroy, SkipSelf, ViewRef, ɵivyEnabled as ivyEnabled} from '@angular/core';
 import {ChangeDetectionStrategy, ChangeDetectorRef, PipeTransform} from '@angular/core/src/change_detection/change_detection';
 import {getDebugContext} from '@angular/core/src/errors';
 import {ComponentFactoryResolver} from '@angular/core/src/linker/component_factory_resolver';
@@ -23,29 +23,26 @@ import {getDOM} from '@angular/platform-browser/src/dom/dom_adapter';
 import {DOCUMENT} from '@angular/platform-browser/src/dom/dom_tokens';
 import {dispatchEvent, el} from '@angular/platform-browser/testing/src/browser_util';
 import {expect} from '@angular/platform-browser/testing/src/matchers';
+import {fixmeIvy} from '@angular/private/testing';
 
 import {stringify} from '../../src/util';
 
 const ANCHOR_ELEMENT = new InjectionToken('AnchorElement');
 
 {
-  describe('jit', () => { declareTests({useJit: true}); });
-
-  describe('no jit', () => { declareTests({useJit: false}); });
+  if (ivyEnabled) {
+    fixmeIvy('unknown') && describe('ivy', () => { declareTests(); });
+  } else {
+    fixmeIvy('unknown') && describe('jit', () => { declareTests({useJit: true}); });
+    fixmeIvy('unknown') && describe('no jit', () => { declareTests({useJit: false}); });
+  }
 }
 
 
-function declareTests({useJit}: {useJit: boolean}) {
+function declareTests(config?: {useJit: boolean}) {
   describe('integration tests', function() {
 
-    beforeEach(() => {
-      TestBed.configureCompiler({
-        useJit,
-        providers: [
-          {provide: CompilerConfig, useValue: new CompilerConfig({enableLegacyTemplate: true})}
-        ]
-      });
-    });
+    beforeEach(() => { TestBed.configureCompiler({...config}); });
 
     describe('react to record changes', function() {
       it('should consume text node changes', () => {
@@ -350,7 +347,22 @@ function declareTests({useJit}: {useJit: boolean}) {
         const fixture = TestBed.createComponent(MyComp);
 
         const tc = fixture.debugElement.children[0];
-        expect(tc.injector.get(EventDir)).not.toBe(null);
+        expect(tc.injector.get(EventDir)).not.toBeNull();
+      });
+
+      it('should display correct error message for uninitialized @Output', () => {
+        @Component({selector: 'my-uninitialized-output', template: '<p>It works!</p>'})
+        class UninitializedOutputComp {
+          @Output() customEvent !: EventEmitter<any>;
+        }
+
+        const template =
+            '<my-uninitialized-output (customEvent)="doNothing()"></my-uninitialized-output>';
+        TestBed.overrideComponent(MyComp, {set: {template}});
+
+        TestBed.configureTestingModule({declarations: [MyComp, UninitializedOutputComp]});
+        expect(() => TestBed.createComponent(MyComp))
+            .toThrowError('@Output customEvent not initialized in \'UninitializedOutputComp\'.');
       });
 
       it('should read directives metadata from their binding token', () => {
@@ -418,22 +430,6 @@ function declareTests({useJit}: {useJit: boolean}) {
         const childNodesOfWrapper = getDOM().childNodes(fixture.nativeElement);
         expect(childNodesOfWrapper.length).toBe(1);
         expect(getDOM().isCommentNode(childNodesOfWrapper[0])).toBe(true);
-      });
-
-      it('should support template directives via `template` attribute.', () => {
-        TestBed.configureTestingModule({declarations: [MyComp, SomeViewport]});
-        const template =
-            '<span template="some-viewport: let greeting=someTmpl">{{greeting}}</span>';
-        TestBed.overrideComponent(MyComp, {set: {template}});
-        const fixture = TestBed.createComponent(MyComp);
-
-        fixture.detectChanges();
-
-        const childNodesOfWrapper = getDOM().childNodes(fixture.nativeElement);
-        // 1 template + 2 copies.
-        expect(childNodesOfWrapper.length).toBe(3);
-        expect(childNodesOfWrapper[1]).toHaveText('hello');
-        expect(childNodesOfWrapper[2]).toHaveText('again');
       });
 
       it('should allow to transplant TemplateRefs into other ViewContainers', () => {
@@ -962,7 +958,8 @@ function declareTests({useJit}: {useJit: boolean}) {
         @Directive({selector: '[host-listener]', host: {'(click)': 'doIt(id, unknownProp)'}})
         class DirectiveWithHostListener {
           id = 'one';
-          receivedArgs: any[];
+          // TODO(issue/24571): remove '!'.
+          receivedArgs !: any[];
 
           doIt(...args: any[]) { this.receivedArgs = args; }
         }
@@ -1259,7 +1256,7 @@ function declareTests({useJit}: {useJit: boolean}) {
         const needsAttribute = tc.injector.get(NeedsAttribute);
         expect(needsAttribute.typeAttribute).toEqual('text');
         expect(needsAttribute.staticAttribute).toEqual('');
-        expect(needsAttribute.fooAttribute).toEqual(null);
+        expect(needsAttribute.fooAttribute).toBeNull();
       });
 
       it('should support custom interpolation', () => {
@@ -1280,7 +1277,7 @@ function declareTests({useJit}: {useJit: boolean}) {
         fixture.detectChanges();
         expect(fixture.nativeElement)
             .toHaveText(
-                'Default Interpolation\nCustom Interpolation A\nCustom Interpolation B (Default Interpolation)');
+                'Default InterpolationCustom Interpolation ACustom Interpolation B (Default Interpolation)');
       });
     });
 
@@ -1792,7 +1789,7 @@ function declareTests({useJit}: {useJit: boolean}) {
            const f = TestBed.configureTestingModule({declarations: [MyCmp]}).createComponent(MyCmp);
            f.detectChanges();
 
-           expect(f.nativeElement.childNodes.length).toBe(3);
+           expect(f.nativeElement.childNodes.length).toBe(2);
          }));
 
       it('should not remove whitespaces when explicitly requested not to do so', async(() => {
@@ -1979,12 +1976,14 @@ class MyDir {
 
 @Directive({selector: '[title]', inputs: ['title']})
 class DirectiveWithTitle {
-  title: string;
+  // TODO(issue/24571): remove '!'.
+  title !: string;
 }
 
 @Directive({selector: '[title]', inputs: ['title'], host: {'[title]': 'title'}})
 class DirectiveWithTitleAndHostProperty {
-  title: string;
+  // TODO(issue/24571): remove '!'.
+  title !: string;
 }
 
 @Component({selector: 'event-cmp', template: '<div (click)="noop()"></div>'})
@@ -2055,7 +2054,8 @@ class PushCmpWithHostEvent {
 })
 class PushCmpWithAsyncPipe {
   numberOfChecks: number = 0;
-  resolve: (result: any) => void;
+  // TODO(issue/24571): remove '!'.
+  resolve !: (result: any) => void;
   promise: Promise<any>;
 
   constructor() {
@@ -2241,7 +2241,8 @@ class DirectiveListeningDomEventNoPrevent {
 
 @Directive({selector: '[id]', inputs: ['id']})
 class IdDir {
-  id: string;
+  // TODO(issue/24571): remove '!'.
+  id !: string;
 }
 
 @Directive({selector: '[customEvent]'})
@@ -2304,7 +2305,8 @@ class ToolbarViewContainer {
   template: 'TOOLBAR(<div *ngFor="let  part of query" [toolbarVc]="part"></div>)',
 })
 class ToolbarComponent {
-  @ContentChildren(ToolbarPart) query: QueryList<ToolbarPart>;
+  // TODO(issue/24571): remove '!'.
+  @ContentChildren(ToolbarPart) query !: QueryList<ToolbarPart>;
   ctxProp: string = 'hello world';
 
   constructor() {}
@@ -2504,10 +2506,12 @@ class ComponentWithTemplate {
 class DirectiveWithPropDecorators {
   target: any;
 
-  @Input('elProp') dirProp: string;
+  // TODO(issue/24571): remove '!'.
+  @Input('elProp') dirProp !: string;
   @Output('elEvent') event = new EventEmitter();
 
-  @HostBinding('attr.my-attr') myAttr: string;
+  // TODO(issue/24571): remove '!'.
+  @HostBinding('attr.my-attr') myAttr !: string;
   @HostListener('click', ['$event.target'])
   onClick(target: any) { this.target = target; }
 

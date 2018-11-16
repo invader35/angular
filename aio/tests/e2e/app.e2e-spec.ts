@@ -39,14 +39,14 @@ describe('site App', function() {
     navItemHeadings.each(heading => testNavItemHeading(heading!, 1));
 
     // Helpers
-    function expectToBeCollapsed(element: ElementFinder) {
-      expect(element.getAttribute('class')).toMatch(/\bcollapsed\b/);
-      expect(element.getAttribute('class')).not.toMatch(/\bexpanded\b/);
+    function expectToBeCollapsed(elementFinder: ElementFinder) {
+      expect(elementFinder.getAttribute('class')).toMatch(/\bcollapsed\b/);
+      expect(elementFinder.getAttribute('class')).not.toMatch(/\bexpanded\b/);
     }
 
-    function expectToBeExpanded(element: ElementFinder) {
-      expect(element.getAttribute('class')).not.toMatch(/\bcollapsed\b/);
-      expect(element.getAttribute('class')).toMatch(/\bexpanded\b/);
+    function expectToBeExpanded(elementFinder: ElementFinder) {
+      expect(elementFinder.getAttribute('class')).not.toMatch(/\bcollapsed\b/);
+      expect(elementFinder.getAttribute('class')).toMatch(/\bexpanded\b/);
     }
 
     function testNavItemHeading(heading: ElementFinder, level: number) {
@@ -162,15 +162,12 @@ describe('site App', function() {
   describe('404 page', () => {
     it('should add or remove the "noindex" meta tag depending upon the validity of the page', () => {
       page.navigateTo('');
-      expect(element(by.css('meta[name="googlebot"]')).isPresent()).toBeFalsy();
       expect(element(by.css('meta[name="robots"]')).isPresent()).toBeFalsy();
 
       page.navigateTo('does/not/exist');
-      expect(element(by.css('meta[name="googlebot"][content="noindex"]')).isPresent()).toBeTruthy();
       expect(element(by.css('meta[name="robots"][content="noindex"]')).isPresent()).toBeTruthy();
 
       page.click(page.getTopMenuLink('features'));
-      expect(element(by.css('meta[name="googlebot"]')).isPresent()).toBeFalsy();
       expect(element(by.css('meta[name="robots"]')).isPresent()).toBeFalsy();
     });
 
@@ -178,8 +175,29 @@ describe('site App', function() {
       page.navigateTo('http/router');
       const results = page.getSearchResults();
 
-      expect(results).toContain('Http');
+      expect(results).toContain('HttpRequest');
       expect(results).toContain('Router');
+    });
+  });
+
+  describe('suggest edit link', () => {
+    it('should be present on all docs pages', () => {
+      page.navigateTo('tutorial/toh-pt1');
+      expect(page.ghLinks.count()).toEqual(1);
+      /* tslint:disable:max-line-length */
+      expect(page.ghLinks.get(0).getAttribute('href'))
+        .toMatch(/https:\/\/github\.com\/angular\/angular\/edit\/master\/aio\/content\/tutorial\/toh-pt1\.md\?message=docs%3A%20describe%20your%20change\.\.\./);
+
+      page.navigateTo('guide/http');
+      expect(page.ghLinks.count()).toEqual(1);
+      /* tslint:disable:max-line-length */
+      expect(page.ghLinks.get(0).getAttribute('href'))
+        .toMatch(/https:\/\/github\.com\/angular\/angular\/edit\/master\/aio\/content\/guide\/http\.md\?message=docs%3A%20describe%20your%20change\.\.\./);
+    });
+
+    it('should not be present on top level pages', () => {
+      page.navigateTo('features');
+      expect(page.ghLinks.count()).toEqual(0);
     });
   });
 });

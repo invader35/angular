@@ -1,64 +1,51 @@
 package(default_visibility = ["//visibility:public"])
 
+load("@build_bazel_rules_nodejs//:defs.bzl", "node_modules_filegroup")
+
 exports_files([
     "tsconfig.json",
+    "LICENSE",
+    "protractor-perf.conf.js",
 ])
-
-# This rule belongs in node_modules/BUILD
-# It's here as a workaround for
-# https://github.com/bazelbuild/bazel/issues/374#issuecomment-296217940
-filegroup(
-    name = "node_modules",
-    # Performance workaround: list individual files
-    # Reduces the number of files as inputs to nodejs_binary:
-    # bazel query "deps(:node_modules)" | wc -l
-    # This won't scale in the general case.
-    # TODO(alexeagle): figure out what to do
-    srcs = glob(["/".join([
-        "node_modules",
-        pkg,
-        "**",
-        ext,
-    ]) for pkg in [
-        "jasmine",
-        "typescript",
-        "zone.js",
-        "tsutils",
-        "@types",
-        "tsickle",
-        "hammerjs",
-        "protobufjs",
-        "bytebuffer",
-        "reflect-metadata",
-        "source-map-support",
-        "minimist",
-        "tslib",
-    ] for ext in [
-        "*.js",
-        "*.json",
-        "*.d.ts",
-    ]]),
-)
 
 filegroup(
     name = "web_test_bootstrap_scripts",
     # do not sort
     srcs = [
-        "//:node_modules/reflect-metadata/Reflect.js",
-        "//:node_modules/zone.js/dist/zone.js",
-        "//:node_modules/zone.js/dist/async-test.js",
-        "//:node_modules/zone.js/dist/sync-test.js",
-        "//:node_modules/zone.js/dist/fake-async-test.js",
-        "//:node_modules/zone.js/dist/proxy.js",
-        "//:node_modules/zone.js/dist/jasmine-patch.js",
+        "@ngdeps//node_modules/reflect-metadata:Reflect.js",
+        "@ngdeps//node_modules/zone.js:dist/zone.js",
+        "@ngdeps//node_modules/zone.js:dist/zone-testing.js",
+        "@ngdeps//node_modules/zone.js:dist/task-tracking.js",
+        "//:test-events.js",
     ],
 )
 
 filegroup(
-    name = "angularjs",
-    # do not sort
+    name = "angularjs_scripts",
     srcs = [
-        "//:node_modules/angular/angular.js",
-        "//:node_modules/angular-mocks/angular-mocks.js",
+        "@ngdeps//node_modules/angular:angular.js",
+        "@ngdeps//node_modules/angular-1.5:angular.js",
+        "@ngdeps//node_modules/angular-1.6:angular.js",
+        "@ngdeps//node_modules/angular-mocks:angular-mocks.js",
+        "@ngdeps//node_modules/angular-mocks-1.5:angular-mocks.js",
+        "@ngdeps//node_modules/angular-mocks-1.6:angular-mocks.js",
     ],
+)
+
+load("@build_bazel_rules_nodejs//:defs.bzl", "nodejs_binary")
+
+# A nodejs_binary for @angular/bazel/ngc-wrapped to use by default in
+# ng_module that depends on @npm//@angular/bazel instead of the
+# output of the //packages/bazel/src/ngc-wrapped ts_library rule. This
+# default is for downstream users that depend on the @angular/bazel npm
+# package. The generated @npm//@angular/bazel/ngc-wrapped target
+# does not work because it does not have the node `--expose-gc` flag
+# set which is required to support the call to `global.gc()`.
+nodejs_binary(
+    name = "@angular/bazel/ngc-wrapped",
+    configuration_env_vars = ["compile"],
+    data = ["@npm//@angular/bazel"],
+    entry_point = "@angular/bazel/src/ngc-wrapped/index.js",
+    install_source_map_support = False,
+    templated_args = ["--node_options=--expose-gc"],
 )

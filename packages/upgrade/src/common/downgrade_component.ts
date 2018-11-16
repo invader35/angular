@@ -11,7 +11,7 @@ import {ComponentFactory, ComponentFactoryResolver, Injector, NgZone, Type} from
 import * as angular from './angular1';
 import {$COMPILE, $INJECTOR, $PARSE, INJECTOR_KEY, LAZY_MODULE_REF, REQUIRE_INJECTOR, REQUIRE_NG_MODEL} from './constants';
 import {DowngradeComponentAdapter} from './downgrade_component_adapter';
-import {LazyModuleRef, controllerKey, getComponentName, isFunction} from './util';
+import {LazyModuleRef, controllerKey, getTypeName, isFunction, validateInjectionKey} from './util';
 
 
 interface Thenable<T> {
@@ -19,42 +19,53 @@ interface Thenable<T> {
 }
 
 /**
- * @whatItDoes
+ * @description
+ *
+ * A helper function that allows an Angular component to be used from AngularJS.
  *
  * *Part of the [upgrade/static](api?query=upgrade%2Fstatic)
  * library for hybrid upgrade apps that support AoT compilation*
  *
- * Allows an Angular component to be used from AngularJS.
+ * This helper function returns a factory function to be used for registering
+ * an AngularJS wrapper directive for "downgrading" an Angular component.
  *
- * @howToUse
+ * @usageNotes
+ * ### Examples
  *
  * Let's assume that you have an Angular component called `ng2Heroes` that needs
  * to be made available in AngularJS templates.
  *
- * {@example upgrade/static/ts/module.ts region="ng2-heroes"}
+ * {@example upgrade/static/ts/full/module.ts region="ng2-heroes"}
  *
  * We must create an AngularJS [directive](https://docs.angularjs.org/guide/directive)
  * that will make this Angular component available inside AngularJS templates.
  * The `downgradeComponent()` function returns a factory function that we
  * can use to define the AngularJS directive that wraps the "downgraded" component.
  *
- * {@example upgrade/static/ts/module.ts region="ng2-heroes-wrapper"}
+ * {@example upgrade/static/ts/full/module.ts region="ng2-heroes-wrapper"}
  *
- * @description
+ * @param info contains information about the Component that is being downgraded:
  *
- * A helper function that returns a factory function to be used for registering an
- * AngularJS wrapper directive for "downgrading" an Angular component.
+ * - `component: Type<any>`: The type of the Component that will be downgraded
+ * - `downgradedModule?: string`: The name of the downgraded module (if any) that the component
+ *   "belongs to", as returned by a call to `downgradeModule()`. It is the module, whose
+ *   corresponding Angular module will be bootstrapped, when the component needs to be instantiated.
+ *   <br />
+ *   (This option is only necessary when using `downgradeModule()` to downgrade more than one
+ *   Angular module.)
+ * - `propagateDigest?: boolean`: Whether to perform {@link ChangeDetectorRef#detectChanges
+ *   change detection} on the component on every
+ *   [$digest](https://docs.angularjs.org/api/ng/type/$rootScope.Scope#$digest). If set to `false`,
+ *   change detection will still be performed when any of the component's inputs changes.
+ *   (Default: true)
  *
- * The parameter contains information about the Component that is being downgraded:
+ * @returns a factory function that can be used to register the component in an
+ * AngularJS module.
  *
- * * `component: Type<any>`: The type of the Component that will be downgraded
- *
- * @experimental
+ * @publicApi
  */
 export function downgradeComponent(info: {
-  component: Type<any>;
-  /** @experimental */
-  propagateDigest?: boolean;
+  component: Type<any>; downgradedModule?: string; propagateDigest?: boolean;
   /** @deprecated since v4. This parameter is no longer used */
   inputs?: string[];
   /** @deprecated since v4. This parameter is no longer used */
@@ -91,7 +102,13 @@ export function downgradeComponent(info: {
         let ranAsync = false;
 
         if (!parentInjector) {
-          const lazyModuleRef = $injector.get(LAZY_MODULE_REF) as LazyModuleRef;
+          const downgradedModule = info.downgradedModule || '';
+          const lazyModuleRefKey = `${LAZY_MODULE_REF}${downgradedModule}`;
+          const attemptedAction = `instantiating component '${getTypeName(info.component)}'`;
+
+          validateInjectionKey($injector, downgradedModule, lazyModuleRefKey, attemptedAction);
+
+          const lazyModuleRef = $injector.get(lazyModuleRefKey) as LazyModuleRef;
           needsNgZone = lazyModuleRef.needsNgZone;
           parentInjector = lazyModuleRef.injector || lazyModuleRef.promise as Promise<Injector>;
         }
@@ -103,7 +120,7 @@ export function downgradeComponent(info: {
               componentFactoryResolver.resolveComponentFactory(info.component) !;
 
           if (!componentFactory) {
-            throw new Error('Expecting ComponentFactory for: ' + getComponentName(info.component));
+            throw new Error(`Expecting ComponentFactory for: ${getTypeName(info.component)}`);
           }
 
           const injectorPromise = new ParentInjectorPromise(element);
@@ -157,7 +174,8 @@ export function downgradeComponent(info: {
  * to preserve the synchronous nature of Angular 1's $compile.
  */
 class ParentInjectorPromise {
-  private injector: Injector;
+  // TODO(issue/24571): remove '!'.
+  private injector !: Injector;
   private injectorKey: string = controllerKey(INJECTOR_KEY);
   private callbacks: ((injector: Injector) => any)[] = [];
 

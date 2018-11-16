@@ -6,30 +6,27 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {assertEqual, assertNotEqual} from './assert';
-import {LNode, LNodeFlags} from './interfaces/node';
+import {assertDefined, assertEqual} from './assert';
+import {TNode, TNodeType} from './interfaces/node';
 
-export function assertNodeType(node: LNode, type: LNodeFlags) {
-  assertNotEqual(node, null, 'node');
-  assertEqual(node.flags & LNodeFlags.TYPE_MASK, type, 'Node.type', typeSerializer);
+export function assertNodeType(tNode: TNode, type: TNodeType) {
+  assertDefined(tNode, 'should be called with a TNode');
+  assertEqual(tNode.type, type, `should be a ${typeName(type)}`);
 }
 
-export function assertNodeOfPossibleTypes(node: LNode, ...types: LNodeFlags[]) {
-  assertNotEqual(node, null, 'node');
-  const nodeType = (node.flags & LNodeFlags.TYPE_MASK);
-  for (let i = 0; i < types.length; i++) {
-    if (nodeType === types[i]) {
-      return;
-    }
-  }
-  throw new Error(
-      `Expected node of possible types: ${types.map(typeSerializer).join(', ')} but got ${typeSerializer(nodeType)}`);
+export function assertNodeOfPossibleTypes(tNode: TNode, ...types: TNodeType[]) {
+  assertDefined(tNode, 'should be called with a TNode');
+  const found = types.some(type => tNode.type === type);
+  assertEqual(
+      found, true,
+      `Should be one of ${types.map(typeName).join(', ')} but got ${typeName(tNode.type)}`);
 }
 
-function typeSerializer(type: LNodeFlags): string {
-  if (type == LNodeFlags.Projection) return 'Projection';
-  if (type == LNodeFlags.Container) return 'Container';
-  if (type == LNodeFlags.View) return 'View';
-  if (type == LNodeFlags.Element) return 'Element';
-  return '??? ' + type + ' ???';
+function typeName(type: TNodeType): string {
+  if (type == TNodeType.Projection) return 'Projection';
+  if (type == TNodeType.Container) return 'Container';
+  if (type == TNodeType.View) return 'View';
+  if (type == TNodeType.Element) return 'Element';
+  if (type == TNodeType.ElementContainer) return 'ElementContainer';
+  return '<unknown>';
 }

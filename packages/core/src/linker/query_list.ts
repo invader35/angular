@@ -6,7 +6,7 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {Observable} from 'rxjs/Observable';
+import {Observable} from 'rxjs';
 
 import {EventEmitter} from '../event_emitter';
 import {getSymbolIterator} from '../util';
@@ -27,14 +27,16 @@ import {getSymbolIterator} from '../util';
  *
  * NOTE: In the future this class will implement an `Observable` interface.
  *
- * ### Example ([live demo](http://plnkr.co/edit/RX8sJnQYl9FWuSCWme5z?p=preview))
+ * @usageNotes
+ * ### Example
  * ```typescript
  * @Component({...})
  * class Container {
  *   @ViewChildren(Item) items:QueryList<Item>;
  * }
  * ```
- * @stable
+ *
+ * @publicApi
  */
 export class QueryList<T>/* implements Iterable<T> */ {
   public readonly dirty = true;
@@ -42,8 +44,10 @@ export class QueryList<T>/* implements Iterable<T> */ {
   public readonly changes: Observable<any> = new EventEmitter();
 
   readonly length: number = 0;
-  readonly first: T;
-  readonly last: T;
+  // TODO(issue/24571): remove '!'.
+  readonly first !: T;
+  // TODO(issue/24571): remove '!'.
+  readonly last !: T;
 
   /**
    * See

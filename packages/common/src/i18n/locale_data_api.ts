@@ -6,15 +6,15 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {CURRENCIES} from './currencies';
 import localeEn from './locale_en';
-import {LOCALE_DATA, LocaleDataIndex, ExtraLocaleDataIndex} from './locale_data';
+import {LOCALE_DATA, LocaleDataIndex, ExtraLocaleDataIndex, CurrencyIndex} from './locale_data';
+import {CURRENCIES_EN, CurrenciesSymbols} from './currencies';
 
 /**
  * The different format styles that can be used to represent numbers.
  * Used by the function {@link getLocaleNumberFormat}.
  *
- * @experimental i18n support is experimental.
+ * @publicApi
  */
 export enum NumberFormatStyle {
   Decimal,
@@ -23,7 +23,7 @@ export enum NumberFormatStyle {
   Scientific
 }
 
-/** @experimental */
+/** @publicApi */
 export enum Plural {
   Zero = 0,
   One = 1,
@@ -40,7 +40,7 @@ export enum Plural {
  * the genitive.
  * See [the CLDR website](http://cldr.unicode.org/translation/date-time) for more information.
  *
- * @experimental i18n support is experimental.
+ * @publicApi
  */
 export enum FormStyle {
   Format,
@@ -57,7 +57,7 @@ export enum FormStyle {
  * - Abbreviated: `Sun`
  * - Wide: `Sunday`
  *
- * @experimental i18n support is experimental.
+ * @publicApi
  */
 export enum TranslationWidth {
   Narrow,
@@ -77,7 +77,7 @@ export enum TranslationWidth {
  *  - `'full'`: `'EEEE, MMMM d, y, h:mm:ss a zzzz'` (e.g. `Monday, June 15, 2015 at
  * 9:03:01 AM GMT+01:00`)
  *
- * @experimental i18n support is experimental.
+ * @publicApi
  */
 export enum FormatWidth {
   Short,
@@ -106,7 +106,7 @@ export enum FormatWidth {
  * | currencyDecimal        | $2,345`.`67       | decimal separator, fallback to "decimal"    |
  * | currencyGroup          | $2`,`345.67       | grouping separator, fallback to "group"     |
  *
- * @experimental i18n support is experimental.
+ * @publicApi
  */
 export enum NumberSymbol {
   Decimal,
@@ -128,7 +128,7 @@ export enum NumberSymbol {
 /**
  * The value for each day of the week, based on the en-US locale
  *
- * @experimental
+ * @publicApi
  */
 export enum WeekDay {
   Sunday = 0,
@@ -143,7 +143,7 @@ export enum WeekDay {
 /**
  * The locale id for the chosen locale (e.g `en-GB`).
  *
- * @experimental i18n support is experimental.
+ * @publicApi
  */
 export function getLocaleId(locale: string): string {
   return findLocaleData(locale)[LocaleDataIndex.LocaleId];
@@ -152,7 +152,7 @@ export function getLocaleId(locale: string): string {
 /**
  * Periods of the day (e.g. `[AM, PM]` for en-US).
  *
- * @experimental i18n support is experimental.
+ * @publicApi
  */
 export function getLocaleDayPeriods(
     locale: string, formStyle: FormStyle, width: TranslationWidth): [string, string] {
@@ -167,7 +167,7 @@ export function getLocaleDayPeriods(
 /**
  * Days of the week for the Gregorian calendar (e.g. `[Sunday, Monday, ... Saturday]` for en-US).
  *
- * @experimental i18n support is experimental.
+ * @publicApi
  */
 export function getLocaleDayNames(
     locale: string, formStyle: FormStyle, width: TranslationWidth): string[] {
@@ -181,7 +181,7 @@ export function getLocaleDayNames(
 /**
  * Months of the year for the Gregorian calendar (e.g. `[January, February, ...]` for en-US).
  *
- * @experimental i18n support is experimental.
+ * @publicApi
  */
 export function getLocaleMonthNames(
     locale: string, formStyle: FormStyle, width: TranslationWidth): string[] {
@@ -195,7 +195,7 @@ export function getLocaleMonthNames(
 /**
  * Eras for the Gregorian calendar (e.g. AD/BC).
  *
- * @experimental i18n support is experimental.
+ * @publicApi
  */
 export function getLocaleEraNames(locale: string, width: TranslationWidth): [string, string] {
   const data = findLocaleData(locale);
@@ -207,7 +207,7 @@ export function getLocaleEraNames(locale: string, width: TranslationWidth): [str
  * First day of the week for this locale, based on english days (Sunday = 0, Monday = 1, ...).
  * For example in french the value would be 1 because the first day of the week is Monday.
  *
- * @experimental i18n support is experimental.
+ * @publicApi
  */
 export function getLocaleFirstDayOfWeek(locale: string): WeekDay {
   const data = findLocaleData(locale);
@@ -219,7 +219,7 @@ export function getLocaleFirstDayOfWeek(locale: string): WeekDay {
  * (Sunday = 0, Monday = 1, ...).
  * For example in english the value would be [6,0] for Saturday to Sunday.
  *
- * @experimental i18n support is experimental.
+ * @publicApi
  */
 export function getLocaleWeekEndRange(locale: string): [WeekDay, WeekDay] {
   const data = findLocaleData(locale);
@@ -249,7 +249,7 @@ export function getLocaleWeekEndRange(locale: string): [WeekDay, WeekDay] {
  *
  *  For example, `M/d/yy`, corresponding to a date like "9/14/99".
  *
- * @experimental i18n support is experimental.
+ * @publicApi
  */
 export function getLocaleDateFormat(locale: string, width: FormatWidth): string {
   const data = findLocaleData(locale);
@@ -274,7 +274,7 @@ export function getLocaleDateFormat(locale: string, width: FormatWidth): string 
  * through 23 (midnight plus 1 minute is 0:01), or using k to mean a 24-hour clock cycle running
  * 1 through 24 (midnight plus 1 minute is 24:01).
  *
- * @experimental i18n support is experimental.
+ * @publicApi
  */
 export function getLocaleTimeFormat(locale: string, width: FormatWidth): string {
   const data = findLocaleData(locale);
@@ -304,7 +304,7 @@ export function getLocaleTimeFormat(locale: string, width: FormatWidth): string 
  * time. English uses `{1} 'at' {0}` for full and long styles, and `{1}, {0}` for medium and short
  * styles.
  *
- * @experimental i18n support is experimental.
+ * @publicApi
  */
 export function getLocaleDateTimeFormat(locale: string, width: FormatWidth): string {
   const data = findLocaleData(locale);
@@ -316,7 +316,7 @@ export function getLocaleDateTimeFormat(locale: string, width: FormatWidth): str
  * Number symbol that can be used to replace placeholders in number formats.
  * See {@link NumberSymbol} for more information.
  *
- * @experimental i18n support is experimental.
+ * @publicApi
  */
 export function getLocaleNumberSymbol(locale: string, symbol: NumberSymbol): string {
   const data = findLocaleData(locale);
@@ -360,7 +360,7 @@ export function getLocaleNumberSymbol(locale: string, symbol: NumberSymbol): str
  * You can find more information
  * [on the CLDR website](http://cldr.unicode.org/translation/number-patterns)
  *
- * @experimental i18n support is experimental.
+ * @publicApi
  */
 export function getLocaleNumberFormat(locale: string, type: NumberFormatStyle): string {
   const data = findLocaleData(locale);
@@ -372,7 +372,7 @@ export function getLocaleNumberFormat(locale: string, type: NumberFormatStyle): 
  * the locale en-US).
  * The symbol will be `null` if the main country cannot be determined.
  *
- * @experimental i18n support is experimental.
+ * @publicApi
  */
 export function getLocaleCurrencySymbol(locale: string): string|null {
   const data = findLocaleData(locale);
@@ -384,7 +384,7 @@ export function getLocaleCurrencySymbol(locale: string): string|null {
  * en-US).
  * The name will be `null` if the main country cannot be determined.
  *
- * @experimental i18n support is experimental.
+ * @publicApi
  */
 export function getLocaleCurrencyName(locale: string): string|null {
   const data = findLocaleData(locale);
@@ -392,10 +392,18 @@ export function getLocaleCurrencyName(locale: string): string|null {
 }
 
 /**
+ * Returns the currency values for the locale
+ */
+function getLocaleCurrencies(locale: string): {[code: string]: CurrenciesSymbols} {
+  const data = findLocaleData(locale);
+  return data[LocaleDataIndex.Currencies];
+}
+
+/**
  * The locale plural function used by ICU expressions to determine the plural case to use.
  * See {@link NgPlural} for more information.
  *
- * @experimental i18n support is experimental.
+ * @publicApi
  */
 export function getLocalePluralCase(locale: string): (value: number) => Plural {
   const data = findLocaleData(locale);
@@ -419,10 +427,10 @@ function checkFullData(data: any) {
  * You should fallback to AM/PM when there are no rules available.
  *
  * Note: this is only available if you load the full locale data.
- * See the {@linkDocs guide/i18n#i18n-pipes "I18n guide"} to know how to import additional locale
+ * See the ["I18n guide"](guide/i18n#i18n-pipes) to know how to import additional locale
  * data.
  *
- * @experimental i18n support is experimental.
+ * @publicApi
  */
 export function getLocaleExtraDayPeriodRules(locale: string): (Time | [Time, Time])[] {
   const data = findLocaleData(locale);
@@ -444,10 +452,10 @@ export function getLocaleExtraDayPeriodRules(locale: string): (Time | [Time, Tim
  * You should fallback to AM/PM when there are no day periods available.
  *
  * Note: this is only available if you load the full locale data.
- * See the {@linkDocs guide/i18n#i18n-pipes "I18n guide"} to know how to import additional locale
+ * See the ["I18n guide"](guide/i18n#i18n-pipes) to know how to import additional locale
  * data.
  *
- * @experimental i18n support is experimental.
+ * @publicApi
  */
 export function getLocaleExtraDayPeriods(
     locale: string, formStyle: FormStyle, width: TranslationWidth): string[] {
@@ -468,7 +476,7 @@ export function getLocaleExtraDayPeriods(
  * add the first one to the locale data arrays, the other ones are only defined when different.
  * We use this function to retrieve the first defined value.
  *
- * @experimental i18n support is experimental.
+ * @publicApi
  */
 function getLastDefinedValue<T>(data: T[], index: number): T {
   for (let i = index; i > -1; i--) {
@@ -482,7 +490,7 @@ function getLastDefinedValue<T>(data: T[], index: number): T {
 /**
  * A representation of the time with hours and minutes
  *
- * @experimental i18n support is experimental.
+ * @publicApi
  */
 export type Time = {
   hours: number,
@@ -500,7 +508,7 @@ function extractTime(time: string): Time {
 /**
  * Finds the locale data for a locale id
  *
- * @experimental i18n support is experimental.
+ * @publicApi
  */
 export function findLocaleData(locale: string): any {
   const normalizedLocale = locale.toLowerCase().replace(/_/g, '-');
@@ -526,18 +534,37 @@ export function findLocaleData(locale: string): any {
 }
 
 /**
- * Return the currency symbol for a given currency code, or the code if no symbol available
+ * Returns the currency symbol for a given currency code, or the code if no symbol available
  * (e.g.: format narrow = $, format wide = US$, code = USD)
+ * If no locale is provided, it uses the locale "en" by default
  *
- * @experimental i18n support is experimental.
+ * @publicApi
  */
-export function getCurrencySymbol(code: string, format: 'wide' | 'narrow'): string {
-  const currency = CURRENCIES[code] || [];
-  const symbolNarrow = currency[1];
+export function getCurrencySymbol(code: string, format: 'wide' | 'narrow', locale = 'en'): string {
+  const currency = getLocaleCurrencies(locale)[code] || CURRENCIES_EN[code] || [];
+  const symbolNarrow = currency[CurrencyIndex.SymbolNarrow];
 
   if (format === 'narrow' && typeof symbolNarrow === 'string') {
     return symbolNarrow;
   }
 
-  return currency[0] || code;
+  return currency[CurrencyIndex.Symbol] || code;
+}
+
+// Most currencies have cents, that's why the default is 2
+const DEFAULT_NB_OF_CURRENCY_DIGITS = 2;
+
+/**
+ * Returns the number of decimal digits for the given currency.
+ * Its value depends upon the presence of cents in that particular currency.
+ *
+ * @publicApi
+ */
+export function getNumberOfCurrencyDigits(code: string): number {
+  let digits;
+  const currency = CURRENCIES_EN[code];
+  if (currency) {
+    digits = currency[CurrencyIndex.NbOfDigits];
+  }
+  return typeof digits === 'number' ? digits : DEFAULT_NB_OF_CURRENCY_DIGITS;
 }

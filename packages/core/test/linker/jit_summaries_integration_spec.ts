@@ -9,12 +9,13 @@
 import {ResourceLoader} from '@angular/compiler';
 import {CompileMetadataResolver} from '@angular/compiler/src/metadata_resolver';
 import {MockResourceLoader} from '@angular/compiler/testing/src/resource_loader_mock';
-import {Component, Directive, Injectable, NgModule, Pipe, Type} from '@angular/core';
+import {Component, Directive, Injectable, NgModule, OnDestroy, Pipe, Type} from '@angular/core';
 import {TestBed, async, getTestBed} from '@angular/core/testing';
 import {expect} from '@angular/platform-browser/testing/src/matchers';
+import {fixmeIvy} from '@angular/private/testing';
 
 {
-  describe('Jit Summaries', () => {
+  fixmeIvy('unknown') && describe('Jit Summaries', () => {
     let instances: Map<any, Base>;
     let summaries: () => any[];
 
@@ -56,6 +57,10 @@ import {expect} from '@angular/platform-browser/testing/src/matchers';
       constructor(service: SomeService) {}
     }
 
+    @Component({template: ''})
+    class TestCompErrorOnDestroy implements OnDestroy {
+      ngOnDestroy() {}
+    }
 
     function resetTestEnvironmentWithSummaries(summaries?: () => any[]) {
       const {platform, ngModule} = getTestBed();
@@ -206,6 +211,31 @@ import {expect} from '@angular/platform-browser/testing/src/matchers';
       expect(() => TestBed.overrideModule(SomeModule, {add: {}}).compileComponents())
           .toThrowError('SomeModule was AOT compiled, so its metadata cannot be changed.');
     });
+
+    it('should return stack trace and component data on resetTestingModule when error is thrown',
+       () => {
+         resetTestEnvironmentWithSummaries();
+
+         const fixture = TestBed.configureTestingModule({declarations: [TestCompErrorOnDestroy]})
+                             .createComponent<TestCompErrorOnDestroy>(TestCompErrorOnDestroy);
+
+         const expectedError = 'Error from ngOnDestroy';
+
+         const component: TestCompErrorOnDestroy = fixture.componentInstance;
+
+         spyOn(console, 'error');
+         spyOn(component, 'ngOnDestroy').and.throwError(expectedError);
+
+         const expectedObject = {
+           stacktrace: new Error(expectedError),
+           component,
+         };
+
+         TestBed.resetTestingModule();
+
+         expect(console.error)
+             .toHaveBeenCalledWith('Error during cleanup of component', expectedObject);
+       });
 
     it('should allow to add summaries via configureTestingModule', () => {
       resetTestEnvironmentWithSummaries();

@@ -50,7 +50,6 @@ export interface CompilerOptions extends ts.CompilerOptions {
   annotateForClosureCompiler?: boolean;
   annotationsAs?: 'decorators'|'static fields';
   trace?: boolean;
-  enableLegacyTemplate?: boolean;
   disableExpressionLowering?: boolean;
   i18nOutLocale?: string;
   i18nOutFormat?: string;
@@ -60,6 +59,7 @@ export interface CompilerOptions extends ts.CompilerOptions {
   i18nInFile?: string;
   i18nInMissingTranslations?: 'error'|'warning'|'ignore';
   preserveWhitespaces?: boolean;
+  disableTypeScriptVersionCheck?: boolean;
 }
 
 export interface CompilerHost extends ts.CompilerHost {
@@ -116,7 +116,7 @@ export interface Program {
   getTsSemanticDiagnostics(sourceFile?: ts.SourceFile, cancellationToken?: ts.CancellationToken):
       ReadonlyArray<ts.Diagnostic>;
   getNgSemanticDiagnostics(fileName?: string, cancellationToken?: ts.CancellationToken):
-      ReadonlyArray<Diagnostic>;
+      ReadonlyArray<ts.Diagnostic|Diagnostic>;
   loadNgStructureAsync(): Promise<void>;
   listLazyRoutes(entryRoute?: string): LazyRoute[];
   emit({emitFlags, cancellationToken, customTransformers, emitCallback}: {

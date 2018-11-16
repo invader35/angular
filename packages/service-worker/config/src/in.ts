@@ -7,43 +7,50 @@
  */
 
 /**
- * @experimental
+ * @publicApi
  */
 export type Glob = string;
 
 /**
- * @experimental
+ * @publicApi
  */
 export type Duration = string;
 
 /**
  * A top-level Angular Service Worker configuration object.
  *
- * @experimental
+ * @publicApi
  */
 export interface Config {
   appData?: {};
   index: string;
   assetGroups?: AssetGroup[];
   dataGroups?: DataGroup[];
+  navigationUrls?: string[];
 }
 
 /**
  * Configuration for a particular group of assets.
  *
- * @experimental
+ * @publicApi
  */
 export interface AssetGroup {
   name: string;
   installMode?: 'prefetch'|'lazy';
   updateMode?: 'prefetch'|'lazy';
-  resources: {files?: Glob[]; versionedFiles?: Glob[]; urls?: Glob[];};
+  resources: {
+    files?: Glob[];
+    /** @deprecated As of v6 `versionedFiles` and `files` options have the same behavior. Use
+       `files` instead. */
+    versionedFiles?: Glob[];
+    urls?: Glob[];
+  };
 }
 
 /**
  * Configuration for a particular group of dynamic URLs.
  *
- * @experimental
+ * @publicApi
  */
 export interface DataGroup {
   name: string;

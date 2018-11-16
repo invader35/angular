@@ -116,7 +116,8 @@ function generateAllLocalesFile(LOCALES, ALIASES) {
                 .replace(`${HEADER}\n`, '')
                 .replace('export default ', `export const locale_${localeName} = `)
                 .replace('function plural', `function plural_${localeName}`)
-                .replace(/,(\n  | )plural/, `, plural_${localeName}`);
+                .replace(/,(\n  | )plural/, `, plural_${localeName}`)
+                .replace('const u = undefined;\n\n', '');
       }
     }
 
@@ -125,12 +126,16 @@ function generateAllLocalesFile(LOCALES, ALIASES) {
 
   function generateCases(locale) {
     let str = '';
+    let locales = [];
     const eqLocales = existingLocalesAliases[locale];
     for (let l of eqLocales) {
       str += `case '${l}':\n`;
+      locales.push(`'${l}'`);
     }
+    let localesStr = '[' + locales.join(',') + ']';
 
     str += `  l = locale_${formatLocale(locale)};
+    locales = ${localesStr};
     break;\n`;
     return str;
   }
@@ -140,15 +145,18 @@ function generateAllLocalesFile(LOCALES, ALIASES) {
   return `${HEADER}
 import {registerLocaleData} from '../src/i18n/locale_data';
 
+const u = undefined;
+
 ${LOCALES.map(locale => `${existingLocalesData[locale]}`).join('\n')}
 
 let l: any;
+let locales: string[] = [];
 
 switch (goog.LOCALE) {
 ${LOCALES.map(locale => generateCases(locale)).join('')}}
 
 if(l) {
-  registerLocaleData(l, goog.LOCALE);
+  locales.forEach(locale => registerLocaleData(l, locale));
 }
 `;
   // clang-format on

@@ -15,6 +15,8 @@ import {getDOM} from '@angular/platform-browser/src/dom/dom_adapter';
 import {DOCUMENT} from '@angular/platform-browser/src/dom/dom_tokens';
 import {dispatchEvent} from '@angular/platform-browser/testing/src/browser_util';
 import {expect} from '@angular/platform-browser/testing/src/matchers';
+import {fixmeIvy} from '@angular/private/testing';
+
 import {NoopNgZone} from '../src/zone/ng_zone';
 import {ComponentFixtureNoNgZone, TestBed, async, inject, withModule} from '../testing';
 
@@ -23,7 +25,7 @@ class SomeComponent {
 }
 
 {
-  describe('bootstrap', () => {
+  fixmeIvy('unknown') && describe('bootstrap', () => {
     let mockConsole: MockConsole;
 
     beforeEach(() => { mockConsole = new MockConsole(); });
@@ -356,14 +358,16 @@ class SomeComponent {
 
       @Component({template: '<ng-container #vc></ng-container>'})
       class ContainerComp {
+        // TODO(issue/24571): remove '!'.
         @ViewChild('vc', {read: ViewContainerRef})
-        vc: ViewContainerRef;
+        vc !: ViewContainerRef;
       }
 
       @Component({template: '<ng-template #t>Dynamic content</ng-template>'})
       class EmbeddedViewComp {
+        // TODO(issue/24571): remove '!'.
         @ViewChild(TemplateRef)
-        tplRef: TemplateRef<Object>;
+        tplRef !: TemplateRef<Object>;
       }
 
       beforeEach(() => {
@@ -444,7 +448,7 @@ class SomeComponent {
     });
   });
 
-  describe('AppRef', () => {
+  fixmeIvy('unknown') && describe('AppRef', () => {
     @Component({selector: 'sync-comp', template: `<span>{{text}}</span>`})
     class SyncComp {
       text: string = '1';

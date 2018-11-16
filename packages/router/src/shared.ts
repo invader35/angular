@@ -11,16 +11,18 @@ import {UrlSegment, UrlSegmentGroup} from './url_tree';
 
 
 /**
- * @whatItDoes Name of the primary outlet.
+ * @description
  *
- * @stable
+ * Name of the primary outlet.
+ *
+ * @publicApi
  */
 export const PRIMARY_OUTLET = 'primary';
 
 /**
  * A collection of parameters.
  *
- * @stable
+ * @publicApi
  */
 export type Params = {
   [key: string]: any
@@ -36,7 +38,7 @@ export type Params = {
  * The API is inspired by the URLSearchParams interface.
  * see https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams
  *
- * @stable
+ * @publicApi
  */
 export interface ParamMap {
   has(name: string): boolean;
@@ -87,9 +89,9 @@ class ParamsAsMap implements ParamMap {
 }
 
 /**
- * Convert a {@link Params} instance to a {@link ParamMap}.
+ * Convert a `Params` instance to a `ParamMap`.
  *
- * @stable
+ * @publicApi
  */
 export function convertToParamMap(params: Params): ParamMap {
   return new ParamsAsMap(params);

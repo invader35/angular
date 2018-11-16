@@ -13,10 +13,8 @@ import { SearchResults } from 'app/search/interfaces';
 import { SearchService } from 'app/search/search.service';
 import { TocService } from 'app/shared/toc.service';
 
-import { Observable } from 'rxjs/Observable';
-import { BehaviorSubject } from 'rxjs/BehaviorSubject';
-import { combineLatest } from 'rxjs/observable/combineLatest';
-import 'rxjs/add/operator/first';
+import { BehaviorSubject, combineLatest, Observable } from 'rxjs';
+import { first, map } from 'rxjs/operators';
 
 const sideNavView = 'SideNav';
 
@@ -71,7 +69,7 @@ export class AppComponent implements OnInit {
   topMenuNodes: NavigationNode[];
   topMenuNarrowNodes: NavigationNode[];
 
-  hasFloatingToc = true;
+  hasFloatingToc = false;
   private showFloatingToc = new BehaviorSubject(false);
   private showFloatingTocWidth = 800;
   tocMaxHeight: string;
@@ -145,7 +143,7 @@ export class AppComponent implements OnInit {
     // Compute the version picker list from the current version and the versions in the navigation map
     combineLatest(
       this.navigationService.versionInfo,
-      this.navigationService.navigationViews.map(views => views['docVersions']))
+      this.navigationService.navigationViews.pipe(map(views => views['docVersions'])))
       .subscribe(([versionInfo, versions]) => {
         // TODO(pbd): consider whether we can lookup the stable and next versions from the internet
         const computedVersions: NavigationNode[] = [
@@ -173,7 +171,7 @@ export class AppComponent implements OnInit {
 
     this.navigationService.versionInfo.subscribe(vi => this.versionInfo = vi);
 
-    const hasNonEmptyToc = this.tocService.tocList.map(tocList => tocList.length > 0);
+    const hasNonEmptyToc = this.tocService.tocList.pipe(map(tocList => tocList.length > 0));
     combineLatest(hasNonEmptyToc, this.showFloatingToc)
         .subscribe(([hasToc, showFloatingToc]) => this.hasFloatingToc = hasToc && showFloatingToc);
 
@@ -185,7 +183,7 @@ export class AppComponent implements OnInit {
     combineLatest(
       this.documentService.currentDocument,  // ...needed to determine host classes
       this.navigationService.currentNodes)   // ...needed to determine `sidenav` state
-      .first()
+      .pipe(first())
       .subscribe(() => this.updateShell());
   }
 
@@ -351,12 +349,17 @@ export class AppComponent implements OnInit {
   @HostListener('window:scroll')
   onScroll() {
     if (!this.tocMaxHeightOffset) {
-      // Must wait until now for mat-toolbar to be measurable.
+      // Must wait until `mat-toolbar` is measurable.
       const el = this.hostElement.nativeElement as Element;
-      this.tocMaxHeightOffset =
-          el.querySelector('footer')!.clientHeight +
-          el.querySelector('.app-toolbar')!.clientHeight +
-          24; //  fudge margin
+      const headerEl = el.querySelector('.app-toolbar');
+      const footerEl = el.querySelector('footer');
+
+      if (headerEl && footerEl) {
+        this.tocMaxHeightOffset =
+            headerEl.clientHeight +
+            footerEl.clientHeight +
+            24; //  fudge margin
+      }
     }
 
     this.tocMaxHeight = (document.body.scrollHeight - window.pageYOffset - this.tocMaxHeightOffset).toFixed(2);
@@ -386,6 +389,7 @@ export class AppComponent implements OnInit {
 
   hideSearchResults() {
     this.showSearchResults = false;
+    this.locationService.setSearch('', { ...this.locationService.search(), search: undefined });
   }
 
   focusSearchBox() {

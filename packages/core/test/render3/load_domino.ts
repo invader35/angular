@@ -9,6 +9,7 @@
 // Needed to run animation tests
 require('zone.js/dist/zone-node.js');
 
+import '@angular/compiler'; // For JIT mode. Must be in front of any other @angular/* imports.
 import {DominoAdapter} from '@angular/platform-server/src/domino_adapter';
 import {getDOM} from '@angular/platform-browser/src/dom/dom_adapter';
 
@@ -27,4 +28,6 @@ if (typeof window == 'undefined') {
   // For animation tests, see
   // https://github.com/angular/angular/blob/master/packages/animations/browser/src/render/shared.ts#L140
   (global as any).Element = domino.impl.Element;
+  (global as any).isBrowser = false;
+  (global as any).isNode = true;
 }

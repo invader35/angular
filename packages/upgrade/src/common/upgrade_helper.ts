@@ -119,12 +119,34 @@ export class UpgradeHelper {
     return this.compileHtml(template);
   }
 
+  onDestroy($scope: angular.IScope, controllerInstance?: any) {
+    if (controllerInstance && isFunction(controllerInstance.$onDestroy)) {
+      controllerInstance.$onDestroy();
+    }
+    $scope.$destroy();
+
+    // Clean the jQuery/jqLite data on the component+child elements.
+    // Equivelent to how jQuery/jqLite invoke `cleanData` on an Element (this.element)
+    //  https://github.com/jquery/jquery/blob/e743cbd28553267f955f71ea7248377915613fd9/src/manipulation.js#L223
+    //  https://github.com/angular/angular.js/blob/26ddc5f830f902a3d22f4b2aab70d86d4d688c82/src/jqLite.js#L306-L312
+    // `cleanData` will invoke the AngularJS `$destroy` DOM event
+    //  https://github.com/angular/angular.js/blob/26ddc5f830f902a3d22f4b2aab70d86d4d688c82/src/Angular.js#L1911-L1924
+    angular.element.cleanData([this.element]);
+    angular.element.cleanData(this.element.querySelectorAll('*'));
+  }
+
   prepareTransclusion(): angular.ILinkFn|undefined {
     const transclude = this.directive.transclude;
     const contentChildNodes = this.extractChildNodes();
+    const attachChildrenFn: angular.ILinkFn = (scope, cloneAttachFn) => {
+      // Since AngularJS v1.5.8, `cloneAttachFn` will try to destroy the transclusion scope if
+      // `$template` is empty. Since the transcluded content comes from Angular, not AngularJS,
+      // there will be no transclusion scope here.
+      // Provide a dummy `scope.$destroy()` method to prevent `cloneAttachFn` from throwing.
+      scope = scope || {$destroy: () => undefined};
+      return cloneAttachFn !($template, scope);
+    };
     let $template = contentChildNodes;
-    let attachChildrenFn: angular.ILinkFn|undefined = (scope, cloneAttach) =>
-        cloneAttach !($template, scope);
 
     if (transclude) {
       const slots = Object.create(null);

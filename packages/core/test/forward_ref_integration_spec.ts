@@ -10,9 +10,10 @@ import {CommonModule} from '@angular/common';
 import {Component, ContentChildren, Directive, Inject, NO_ERRORS_SCHEMA, NgModule, QueryList, asNativeElements, forwardRef} from '@angular/core';
 import {TestBed} from '@angular/core/testing';
 import {expect} from '@angular/platform-browser/testing/src/matchers';
+import {fixmeIvy} from '@angular/private/testing';
 
 {
-  describe('forwardRef integration', function() {
+  fixmeIvy('unknown') && describe('forwardRef integration', function() {
     beforeEach(() => { TestBed.configureTestingModule({imports: [Module], declarations: [App]}); });
 
     it('should instantiate components which are declared using forwardRef', () => {
@@ -46,7 +47,8 @@ class App {
   template: `{{frame.name}}(<span *ngFor="let  lock of locks">{{lock.name}}</span>)`,
 })
 class Door {
-  @ContentChildren(forwardRef(() => Lock)) locks: QueryList<Lock>;
+  // TODO(issue/24571): remove '!'.
+  @ContentChildren(forwardRef(() => Lock)) locks !: QueryList<Lock>;
   frame: Frame;
 
   constructor(@Inject(forwardRef(() => Frame)) frame: Frame) { this.frame = frame; }

@@ -15,7 +15,6 @@
  * it will be easy to implement such API.
  */
 
-import {ViewEncapsulation} from '../../metadata/view';
 import {RendererStyleFlags2, RendererType2} from '../../render/api';
 
 
@@ -35,13 +34,15 @@ export type Renderer3 = ObjectOrientedRenderer3 | ProceduralRenderer3;
  * (reducing payload size).
  * */
 export interface ObjectOrientedRenderer3 {
+  createComment(data: string): RComment;
   createElement(tagName: string): RElement;
+  createElementNS(namespace: string, tagName: string): RElement;
   createTextNode(data: string): RText;
 
   querySelector(selectors: string): RElement|null;
 }
 
-/** Returns wether the `renderer` is a `ProceduralRenderer3` */
+/** Returns whether the `renderer` is a `ProceduralRenderer3` */
 export function isProceduralRenderer(renderer: ProceduralRenderer3 | ObjectOrientedRenderer3):
     renderer is ProceduralRenderer3 {
   return !!((renderer as any).listen);
@@ -56,6 +57,7 @@ export function isProceduralRenderer(renderer: ProceduralRenderer3 | ObjectOrien
  */
 export interface ProceduralRenderer3 {
   destroy(): void;
+  createComment(value: string): RComment;
   createElement(name: string, namespace?: string|null): RElement;
   createText(value: string): RText;
   /**
@@ -68,6 +70,9 @@ export interface ProceduralRenderer3 {
   insertBefore(parent: RNode, newChild: RNode, refChild: RNode|null): void;
   removeChild(parent: RElement, oldChild: RNode): void;
   selectRootElement(selectorOrNode: string|any): RElement;
+
+  parentNode(node: RNode): RElement|null;
+  nextSibling(node: RNode): RNode|null;
 
   setAttribute(el: RElement, name: string, value: string, namespace?: string|null): void;
   removeAttribute(el: RElement, name: string, namespace?: string|null): void;
@@ -97,6 +102,10 @@ export const domRendererFactory3: RendererFactory3 = {
 
 /** Subset of API needed for appending elements and text nodes. */
 export interface RNode {
+  parentNode: RNode|null;
+
+  nextSibling: RNode|null;
+
   removeChild(oldChild: RNode): void;
 
   /**
@@ -121,6 +130,7 @@ export interface RNode {
 export interface RElement extends RNode {
   style: RCssStyleDeclaration;
   classList: RDomTokenList;
+  className: string;
   setAttribute(name: string, value: string): void;
   removeAttribute(name: string): void;
   setAttributeNS(namespaceURI: string, qualifiedName: string, value: string): void;
@@ -141,6 +151,8 @@ export interface RDomTokenList {
 }
 
 export interface RText extends RNode { textContent: string|null; }
+
+export interface RComment extends RNode {}
 
 // Note: This hack is necessary so we don't erroneously get a circular dependency
 // failure based on types.

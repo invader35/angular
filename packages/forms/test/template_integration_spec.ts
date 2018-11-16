@@ -6,13 +6,14 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {Component, Directive, Type, ViewChild, forwardRef} from '@angular/core';
+import {Component, Directive, Type, forwardRef} from '@angular/core';
 import {ComponentFixture, TestBed, async, fakeAsync, tick} from '@angular/core/testing';
-import {AbstractControl, AsyncValidator, COMPOSITION_BUFFER_MODE, FormControl, FormsModule, NG_ASYNC_VALIDATORS, NgForm, NgModel} from '@angular/forms';
+import {AbstractControl, AsyncValidator, COMPOSITION_BUFFER_MODE, FormControl, FormsModule, NG_ASYNC_VALIDATORS, NgForm, NgFormSelectorWarning, NgModel} from '@angular/forms';
 import {By} from '@angular/platform-browser/src/dom/debug/by';
 import {getDOM} from '@angular/platform-browser/src/dom/dom_adapter';
 import {dispatchEvent} from '@angular/platform-browser/testing/src/browser_util';
-import {merge} from 'rxjs/observable/merge';
+import {fixmeIvy} from '@angular/private/testing';
+import {merge} from 'rxjs';
 
 import {NgModelCustomComp, NgModelCustomWrapper} from './value_accessor_integration_spec';
 
@@ -148,85 +149,101 @@ import {NgModelCustomComp, NgModelCustomWrapper} from './value_accessor_integrat
            expect(form.value).toEqual({});
          }));
 
-      it('should set status classes with ngModel', async(() => {
-           const fixture = initTest(NgModelForm);
-           fixture.componentInstance.name = 'aa';
-           fixture.detectChanges();
-           fixture.whenStable().then(() => {
-             fixture.detectChanges();
+      fixmeIvy('host bindings do not yet work with classes or styles') &&
+          it('should set status classes with ngModel', async(() => {
+               const fixture = initTest(NgModelForm);
+               fixture.componentInstance.name = 'aa';
+               fixture.detectChanges();
+               fixture.whenStable().then(() => {
+                 fixture.detectChanges();
 
-             const input = fixture.debugElement.query(By.css('input')).nativeElement;
-             expect(sortedClassList(input)).toEqual(['ng-invalid', 'ng-pristine', 'ng-untouched']);
+                 const input = fixture.debugElement.query(By.css('input')).nativeElement;
+                 expect(sortedClassList(input)).toEqual([
+                   'ng-invalid', 'ng-pristine', 'ng-untouched'
+                 ]);
 
-             dispatchEvent(input, 'blur');
-             fixture.detectChanges();
+                 dispatchEvent(input, 'blur');
+                 fixture.detectChanges();
 
-             expect(sortedClassList(input)).toEqual(['ng-invalid', 'ng-pristine', 'ng-touched']);
+                 expect(sortedClassList(input)).toEqual([
+                   'ng-invalid', 'ng-pristine', 'ng-touched'
+                 ]);
 
-             input.value = 'updatedValue';
-             dispatchEvent(input, 'input');
-             fixture.detectChanges();
-             expect(sortedClassList(input)).toEqual(['ng-dirty', 'ng-touched', 'ng-valid']);
-           });
-         }));
+                 input.value = 'updatedValue';
+                 dispatchEvent(input, 'input');
+                 fixture.detectChanges();
+                 expect(sortedClassList(input)).toEqual(['ng-dirty', 'ng-touched', 'ng-valid']);
+               });
+             }));
 
-      it('should set status classes with ngModel and async validators', fakeAsync(() => {
+      fixmeIvy('host bindings do not yet work with classes or styles') &&
+          it('should set status classes with ngModel and async validators', fakeAsync(() => {
 
-           const fixture = initTest(NgModelAsyncValidation, NgAsyncValidator);
-           fixture.whenStable().then(() => {
-             fixture.detectChanges();
+               const fixture = initTest(NgModelAsyncValidation, NgAsyncValidator);
+               fixture.whenStable().then(() => {
+                 fixture.detectChanges();
 
-             const input = fixture.debugElement.query(By.css('input')).nativeElement;
-             expect(sortedClassList(input)).toEqual(['ng-pending', 'ng-pristine', 'ng-untouched']);
+                 const input = fixture.debugElement.query(By.css('input')).nativeElement;
+                 expect(sortedClassList(input)).toEqual([
+                   'ng-pending', 'ng-pristine', 'ng-untouched'
+                 ]);
 
-             dispatchEvent(input, 'blur');
-             fixture.detectChanges();
+                 dispatchEvent(input, 'blur');
+                 fixture.detectChanges();
 
-             expect(sortedClassList(input)).toEqual(['ng-pending', 'ng-pristine', 'ng-touched']);
+                 expect(sortedClassList(input)).toEqual([
+                   'ng-pending', 'ng-pristine', 'ng-touched'
+                 ]);
 
-             input.value = 'updatedValue';
-             dispatchEvent(input, 'input');
-             tick();
-             fixture.detectChanges();
+                 input.value = 'updatedValue';
+                 dispatchEvent(input, 'input');
+                 tick();
+                 fixture.detectChanges();
 
-             expect(sortedClassList(input)).toEqual(['ng-dirty', 'ng-touched', 'ng-valid']);
-           });
-         }));
+                 expect(sortedClassList(input)).toEqual(['ng-dirty', 'ng-touched', 'ng-valid']);
+               });
+             }));
 
-      it('should set status classes with ngModelGroup and ngForm', async(() => {
-           const fixture = initTest(NgModelGroupForm);
-           fixture.componentInstance.first = '';
-           fixture.detectChanges();
+      fixmeIvy('host bindings do not yet work with classes or styles') &&
+          it('should set status classes with ngModelGroup and ngForm', async(() => {
+               const fixture = initTest(NgModelGroupForm);
+               fixture.componentInstance.first = '';
+               fixture.detectChanges();
 
-           const form = fixture.debugElement.query(By.css('form')).nativeElement;
-           const modelGroup = fixture.debugElement.query(By.css('[ngModelGroup]')).nativeElement;
-           const input = fixture.debugElement.query(By.css('input')).nativeElement;
+               const form = fixture.debugElement.query(By.css('form')).nativeElement;
+               const modelGroup =
+                   fixture.debugElement.query(By.css('[ngModelGroup]')).nativeElement;
+               const input = fixture.debugElement.query(By.css('input')).nativeElement;
 
-           // ngModelGroup creates its control asynchronously
-           fixture.whenStable().then(() => {
-             fixture.detectChanges();
-             expect(sortedClassList(modelGroup)).toEqual([
-               'ng-invalid', 'ng-pristine', 'ng-untouched'
-             ]);
+               // ngModelGroup creates its control asynchronously
+               fixture.whenStable().then(() => {
+                 fixture.detectChanges();
+                 expect(sortedClassList(modelGroup)).toEqual([
+                   'ng-invalid', 'ng-pristine', 'ng-untouched'
+                 ]);
 
-             expect(sortedClassList(form)).toEqual(['ng-invalid', 'ng-pristine', 'ng-untouched']);
+                 expect(sortedClassList(form)).toEqual([
+                   'ng-invalid', 'ng-pristine', 'ng-untouched'
+                 ]);
 
-             dispatchEvent(input, 'blur');
-             fixture.detectChanges();
+                 dispatchEvent(input, 'blur');
+                 fixture.detectChanges();
 
-             expect(sortedClassList(modelGroup)).toEqual([
-               'ng-invalid', 'ng-pristine', 'ng-touched'
-             ]);
-             expect(sortedClassList(form)).toEqual(['ng-invalid', 'ng-pristine', 'ng-touched']);
+                 expect(sortedClassList(modelGroup)).toEqual([
+                   'ng-invalid', 'ng-pristine', 'ng-touched'
+                 ]);
+                 expect(sortedClassList(form)).toEqual(['ng-invalid', 'ng-pristine', 'ng-touched']);
 
-             input.value = 'updatedValue';
-             dispatchEvent(input, 'input');
-             fixture.detectChanges();
+                 input.value = 'updatedValue';
+                 dispatchEvent(input, 'input');
+                 fixture.detectChanges();
 
-             expect(sortedClassList(modelGroup)).toEqual(['ng-dirty', 'ng-touched', 'ng-valid']);
-             expect(sortedClassList(form)).toEqual(['ng-dirty', 'ng-touched', 'ng-valid']);
-           });
-         }));
+                 expect(sortedClassList(modelGroup)).toEqual([
+                   'ng-dirty', 'ng-touched', 'ng-valid'
+                 ]);
+                 expect(sortedClassList(form)).toEqual(['ng-dirty', 'ng-touched', 'ng-valid']);
+               });
+             }));
 
       it('should not create a template-driven form when ngNoForm is used', () => {
         const fixture = initTest(NgNoFormComp);
@@ -460,7 +477,7 @@ import {NgModelCustomComp, NgModelCustomWrapper} from './value_accessor_integrat
              fixture.detectChanges();
              tick();
 
-             const values: string[] = [];
+             const values: any[] = [];
              const form = fixture.debugElement.children[0].injector.get(NgForm);
 
              const sub = merge(form.valueChanges !, form.statusChanges !)
@@ -748,7 +765,7 @@ import {NgModelCustomComp, NgModelCustomWrapper} from './value_accessor_integrat
 
         it('should reset properly', fakeAsync(() => {
              const fixture = initTest(NgModelForm);
-             fixture.componentInstance.name = 'Nancy';
+             fixture.componentInstance.name = 'Nancy' as string | null;
              fixture.componentInstance.options = {updateOn: 'submit'};
              fixture.detectChanges();
              tick();
@@ -792,7 +809,7 @@ import {NgModelCustomComp, NgModelCustomWrapper} from './value_accessor_integrat
              fixture.detectChanges();
              tick();
 
-             const values: string[] = [];
+             const values: any[] = [];
              const form = fixture.debugElement.children[0].injector.get(NgForm);
 
              const sub = merge(form.valueChanges !, form.statusChanges !)
@@ -1028,7 +1045,7 @@ import {NgModelCustomComp, NgModelCustomWrapper} from './value_accessor_integrat
 
       it('should reset the form to empty when reset event is fired', fakeAsync(() => {
            const fixture = initTest(NgModelForm);
-           fixture.componentInstance.name = 'should be cleared';
+           fixture.componentInstance.name = 'should be cleared' as string | null;
            fixture.detectChanges();
            tick();
 
@@ -1630,6 +1647,61 @@ import {NgModelCustomComp, NgModelCustomWrapper} from './value_accessor_integrat
          }));
     });
 
+    describe('ngForm deprecation warnings', () => {
+      let warnSpy: jasmine.Spy;
+
+      @Component({selector: 'ng-form-deprecated', template: `<ngForm></ngForm><ngForm></ngForm>`})
+      class ngFormDeprecated {
+      }
+
+      beforeEach(() => {
+        (NgFormSelectorWarning as any)._ngFormWarning = false;
+
+        warnSpy = spyOn(console, 'warn');
+      });
+
+      describe(`when using the deprecated 'ngForm' selector`, () => {
+        it(`should only warn once when global provider is provided with "once"`, () => {
+          TestBed.configureTestingModule({
+            declarations: [ngFormDeprecated],
+            imports: [FormsModule.withConfig({warnOnDeprecatedNgFormSelector: 'once'})]
+          });
+          TestBed.createComponent(ngFormDeprecated);
+          expect(warnSpy).toHaveBeenCalledTimes(1);
+          expect(warnSpy.calls.mostRecent().args[0])
+              .toMatch(/It looks like you're using 'ngForm'/gi);
+        });
+
+        it(`should only warn once by default`, () => {
+          initTest(ngFormDeprecated);
+          expect(warnSpy).toHaveBeenCalledTimes(1);
+          expect(warnSpy.calls.mostRecent().args[0])
+              .toMatch(/It looks like you're using 'ngForm'/gi);
+        });
+
+        it(`should not warn when global provider is provided with "never"`, () => {
+          TestBed.configureTestingModule({
+            declarations: [ngFormDeprecated],
+            imports: [FormsModule.withConfig({warnOnDeprecatedNgFormSelector: 'never'})]
+          });
+          TestBed.createComponent(ngFormDeprecated);
+          expect(warnSpy).not.toHaveBeenCalled();
+        });
+
+        it(`should only warn for each instance when global provider is provided with "always"`,
+           () => {
+             TestBed.configureTestingModule({
+               declarations: [ngFormDeprecated],
+               imports: [FormsModule.withConfig({warnOnDeprecatedNgFormSelector: 'always'})]
+             });
+
+             TestBed.createComponent(ngFormDeprecated);
+             expect(warnSpy).toHaveBeenCalledTimes(2);
+             expect(warnSpy.calls.mostRecent().args[0])
+                 .toMatch(/It looks like you're using 'ngForm'/gi);
+           });
+      });
+    });
   });
 }
 
@@ -1640,7 +1712,8 @@ import {NgModelCustomComp, NgModelCustomWrapper} from './value_accessor_integrat
   `
 })
 class StandaloneNgModel {
-  name: string;
+  // TODO(issue/24571): remove '!'.
+  name !: string;
 }
 
 @Component({
@@ -1652,8 +1725,10 @@ class StandaloneNgModel {
   `
 })
 class NgModelForm {
-  name: string;
-  event: Event;
+  // TODO(issue/24571): remove '!'.
+  name !: string | null;
+  // TODO(issue/24571): remove '!'.
+  event !: Event;
   options = {};
 
   onReset() {}
@@ -1676,10 +1751,14 @@ class NgModelNativeValidateForm {
   `
 })
 class NgModelGroupForm {
-  first: string;
-  last: string;
-  email: string;
-  isDisabled: boolean;
+  // TODO(issue/24571): remove '!'.
+  first !: string;
+  // TODO(issue/24571): remove '!'.
+  last !: string;
+  // TODO(issue/24571): remove '!'.
+  email !: string;
+  // TODO(issue/24571): remove '!'.
+  isDisabled !: boolean;
   options = {updateOn: 'change'};
 }
 
@@ -1695,7 +1774,8 @@ class NgModelGroupForm {
   `
 })
 class NgModelValidBinding {
-  first: string;
+  // TODO(issue/24571): remove '!'.
+  first !: string;
 }
 
 
@@ -1711,10 +1791,12 @@ class NgModelValidBinding {
   `
 })
 class NgModelNgIfForm {
-  first: string;
+  // TODO(issue/24571): remove '!'.
+  first !: string;
   groupShowing = true;
   emailShowing = true;
-  email: string;
+  // TODO(issue/24571): remove '!'.
+  email !: string;
 }
 
 @Component({
@@ -1749,8 +1831,10 @@ class InvalidNgModelNoName {
   `
 })
 class NgModelOptionsStandalone {
-  one: string;
-  two: string;
+  // TODO(issue/24571): remove '!'.
+  one !: string;
+  // TODO(issue/24571): remove '!'.
+  two !: string;
   options: {name?: string, standalone?: boolean, updateOn?: string} = {standalone: true};
   formOptions = {};
 }
@@ -1767,10 +1851,14 @@ class NgModelOptionsStandalone {
   `
 })
 class NgModelValidationBindings {
-  required: boolean;
-  minLen: number;
-  maxLen: number;
-  pattern: string;
+  // TODO(issue/24571): remove '!'.
+  required !: boolean;
+  // TODO(issue/24571): remove '!'.
+  minLen !: number;
+  // TODO(issue/24571): remove '!'.
+  maxLen !: number;
+  // TODO(issue/24571): remove '!'.
+  pattern !: string;
 }
 
 @Component({
@@ -1782,9 +1870,12 @@ class NgModelValidationBindings {
   `
 })
 class NgModelMultipleValidators {
-  required: boolean;
-  minLen: number;
-  pattern: string|RegExp;
+  // TODO(issue/24571): remove '!'.
+  required !: boolean;
+  // TODO(issue/24571): remove '!'.
+  minLen !: number;
+  // TODO(issue/24571): remove '!'.
+  pattern !: string | RegExp;
 }
 
 @Component({
@@ -1826,13 +1917,14 @@ class NgModelAsyncValidation {
   selector: 'ng-model-changes-form',
   template: `
     <form>
-      <input name="async" [ngModel]="name" (ngModelChange)="log()" 
+      <input name="async" [ngModel]="name" (ngModelChange)="log()"
              [ngModelOptions]="options">
     </form>
   `
 })
 class NgModelChangesForm {
-  name: string;
+  // TODO(issue/24571): remove '!'.
+  name !: string;
   events: string[] = [];
   options: any;
 
